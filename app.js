@@ -1,7 +1,10 @@
-// --------- Firebase Config -----------
-const firebaseConfig = {
-  apiKey: "AIzaSyDBwvowdavTcrzBtjSOHphrkF9UB_SCCag",
-  authDomain: "wtf-error.firebaseapp.com",
+// app.js (ปรับเพื่อรับมือกับภาพขนาดใหญ่ก่อนอัปโหลด)
+
+
+// --------- Firebase Config ----------- 
+const firebaseConfig = { 
+  apiKey: "AIzaSyDBwvowdavTcrzBtjSOHphrkF9UB_SCCag", 
+  authDomain: "wtf-error.firebaseapp.com", 
   projectId: "wtf-error",
   storageBucket: "wtf-error.appspot.com",
   messagingSenderId: "329249521089",
@@ -19,30 +22,112 @@ const STOCK_COL = "stock_parts";
 function escape(str) { return String(str||"").replace(/[&<>"']/g, s=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[s])); }
 function uuid() { return Math.random().toString(36).substring(2,10) + Date.now(); }
 
-// --------- Image Resize Function -----------
-async function resizeImageFile(file, maxWidth = 1024, maxHeight = 1024, quality = 0.8) {
+// --------- Improved Image Resize Function (iterative compress) -----------
+// - จะพยายามลด quality และ scale ไปทีละขั้นจนขนาด <= maxBytes
+// - คืนค่าเป็น File ที่มีนามสกุล .jpg
+async function resizeImageFile(file, maxWidth = 1024, maxHeight = 1024, maxBytes = 4 * 1024 * 1024) {
+  // ถ้าไฟล์เป็นเล็กกว่า maxBytes แล้ว และไม่ใช่ PNG ที่ต้องแปลง ก็ยังแปลงเป็น jpeg เพื่อความสม่ำเสมอ
+  // แต่เรายังทำ resize เพื่อควบคุมขนาดภาพด้วย
   return new Promise((resolve, reject) => {
-    const img = new Image();
     const reader = new FileReader();
-    reader.onload = e => {
-      img.src = e.target.result;
+    reader.onerror = (e) => reject(new Error("FileReader error"));
+    reader.onload = () => {
+      const img = new Image();
+      img.onerror = () => reject(new Error("Image load error"));
+      img.onload = async () => {
+        let origW = img.width;
+        let origH = img.height;
+        // initial scale to fit within maxWidth/maxHeight
+        let scale = Math.min(1, Math.min(maxWidth / origW, maxHeight / origH));
+        let canvas = document.createElement('canvas');
+        let ctx = canvas.getContext('2d');
+
+        // iterative attempt: try reduce quality first, then reduce size
+        let quality = 0.85; // start
+        const minQuality = 0.35;
+        const minWidth = 300; // don't scale smaller than this
+        const scaleStep = 0.85; // reduce scale by this factor each major iteration
+        let attempt = 0;
+        let lastBlob = null;
+
+        while (true) {
+          attempt++;
+          const w = Math.max(1, Math.round(origW * scale));
+          const h = Math.max(1, Math.round(origH * scale));
+          canvas.width = w;
+          canvas.height = h;
+          ctx.clearRect(0,0,w,h);
+          ctx.drawImage(img, 0, 0, w, h);
+
+          // quality loop
+          let q = quality;
+          let innerAttempt = 0;
+          while (true) {
+            innerAttempt++;
+            // toBlob is async via callback
+            // wrap in Promise to await
+            // use JPEG to ensure compression
+            // eslint-disable-next-line no-await-in-loop
+            const blob = await new Promise(res => canvas.toBlob(res, 'image/jpeg', q));
+            if (!blob) {
+              reject(new Error("Failed to create blob"));
+              return;
+            }
+            // if size ok or quality at minimum -> return
+            if (blob.size <= maxBytes || q <= minQuality) {
+              lastBlob = blob;
+              break;
+            }
+            // otherwise reduce quality and try again
+            q = +(q - 0.1).toFixed(2);
+            if (q < minQuality) q = minQuality;
+            // safety bail-out to avoid infinite loop
+            if (innerAttempt > 8) {
+              lastBlob = blob;
+              break;
+            }
+          }
+
+          // if lastBlob within limit -> resolve
+          if (lastBlob && lastBlob.size <= maxBytes) {
+            // create File (use .jpg)
+            const outName = (file.name || 'image').replace(/\.[^.]+$/, '') + '.jpg';
+            const outFile = new File([lastBlob], outName, { type: 'image/jpeg' });
+            resolve(outFile);
+            return;
+          }
+
+          // else reduce scale and retry (if not too small)
+          if (scale * scaleStep * origW < minWidth) {
+            // cannot reduce further, return lastBlob even if > maxBytes
+            if (lastBlob) {
+              const outName = (file.name || 'image').replace(/\.[^.]+$/, '') + '.jpg';
+              const outFile = new File([lastBlob], outName, { type: 'image/jpeg' });
+              resolve(outFile);
+              return;
+            } else {
+              reject(new Error("Image too large and cannot be compressed further"));
+              return;
+            }
+          }
+          scale = scale * scaleStep;
+          // slightly lower starting quality for next round
+          quality = Math.max(minQuality, quality - 0.1);
+          // safety bail-out on attempts
+          if (attempt > 6) {
+            if (lastBlob) {
+              const outName = (file.name || 'image').replace(/\.[^.]+$/, '') + '.jpg';
+              const outFile = new File([lastBlob], outName, { type: 'image/jpeg' });
+              resolve(outFile);
+              return;
+            }
+            reject(new Error("Unable to compress image enough after multiple attempts"));
+            return;
+          }
+        }
+      };
+      img.src = reader.result;
     };
-    img.onload = () => {
-      let w = img.width, h = img.height;
-      if (w > maxWidth || h > maxHeight) {
-        const ratio = Math.min(maxWidth / w, maxHeight / h);
-        w = w * ratio;
-        h = h * ratio;
-      }
-      const canvas = document.createElement('canvas');
-      canvas.width = w; canvas.height = h;
-      const ctx = canvas.getContext('2d');
-      ctx.drawImage(img, 0, 0, w, h);
-      canvas.toBlob(blob => {
-        resolve(new File([blob], file.name, {type: 'image/jpeg'}));
-      }, 'image/jpeg', quality);
-    };
-    img.onerror = reject;
     reader.readAsDataURL(file);
   });
 }
@@ -98,7 +183,7 @@ tabStock.onclick = function(){
   tabStock.classList.add('active'); tabError.classList.remove('active');
   sectionStock.style.display='block'; sectionError.style.display='none';
 };
-// --------- Smart Search + Suggestion: Error Section ---------
+// --------- Smart Search + Suggestion: Error Section -----------
 const searchErrorInput = document.getElementById('searchError');
 const searchErrorFilter = document.getElementById('searchErrorFilter');
 const errorSuggestBox = document.getElementById('errorSuggest');
@@ -183,7 +268,7 @@ document.getElementById('clearErrorBtn').onclick = function() {
 };
 document.getElementById('searchErrorBtn').onclick = errorSearchHandler;
 
-// --------- Smart Search + Suggestion: Stock Section ---------
+// --------- Smart Search + Suggestion: Stock Section -----------
 const searchStockInput = document.getElementById('searchStock');
 const searchStockFilter = document.getElementById('searchStockFilter');
 const stockSuggestBox = document.getElementById('stockSuggest');
@@ -259,7 +344,7 @@ document.getElementById('clearStockBtn').onclick = function() {
 };
 document.getElementById('searchStockBtn').onclick = stockSearchHandler;
 
-// --------- CRUD & Modal ---------
+// --------- CRUD & Modal -----------
 window.editError = function(id){
   const item = errorData.find(e=>e.id===id);
   showErrorModal(item);
@@ -289,10 +374,13 @@ window.addEventListener("keydown", function(e){
   if(document.getElementById('imgViewerBackdrop').classList.contains("active") && e.key==="Escape") closeImgViewer();
 });
 
-// --------- ฟังก์ชันอัปโหลดภาพขึ้น Storage แล้วคืน URL ---------
-async function uploadImageToStorage(file, pathPrefix="images") {
-  const storageRef = storage.ref(`${pathPrefix}/${Date.now()}_${Math.floor(Math.random()*1000)}_${file.name}`);
-  const snapshot = await storageRef.put(file);
+// --------- Upload image to Storage (accepts File/Blob) ---------
+async function uploadImageToStorage(fileOrBlob, pathPrefix="images") {
+  // make filename safe and ensure .jpg extension
+  const nameBase = (fileOrBlob.name ? fileOrBlob.name.replace(/[^\w\-. ]+/g,'') : `img_${Date.now()}`);
+  const filename = nameBase.replace(/\.[^.]+$/, '') + '.jpg';
+  const storageRef = storage.ref(`${pathPrefix}/${Date.now()}_${Math.floor(Math.random()*1000)}_${filename}`);
+  const snapshot = await storageRef.put(fileOrBlob);
   const url = await snapshot.ref.getDownloadURL();
   return url;
 }
@@ -332,28 +420,41 @@ function showErrorModal(item=null) {
     `).join('');
     window.delImg = function(idx){ imageFiles.splice(idx,1); renderModalThumbs(); }
   }
+
   document.getElementById('imageUpload').onchange = async function(e){
     let files = Array.from(e.target.files);
     let remain = 8-imageFiles.length;
+    if (remain <= 0) { alert("เพิ่มรูปได้สูงสุด 8 รูป"); e.target.value=""; return; }
     let uploadStatus = document.getElementById('uploadStatus');
     uploadStatus.textContent = "กำลังลดขนาดและอัปโหลด...";
     try {
-      // resize แล้วอัปโหลดแบบ parallel
-      let resizedFiles = await Promise.all(
-        files.slice(0,remain).map(file => resizeImageFile(file, 1024, 1024, 0.8))
-      );
-      let urls = await Promise.all(
-        resizedFiles.map(file => uploadImageToStorage(file, "error_images"))
-      );
+      // resize แล้วอัปโหลดแบบ parallel แต่เราจะ limit remain
+      const filesToProcess = files.slice(0, remain);
+      // map -> resize each
+      const resizedFiles = [];
+      for (const f of filesToProcess) {
+        try {
+          // ใช้ขนาดเริ่มต้น 1024x1024, ขนาดสูงสุด 4MB
+          const rf = await resizeImageFile(f, 1024, 1024, 4 * 1024 * 1024);
+          resizedFiles.push(rf);
+        } catch (err) {
+          console.warn("resize failed for", f.name, err);
+          // ถ้า resize ล้มเหลว ให้ข้ามไฟล์ (หรือคุณอาจเลือกจะ push ต้นฉบับ)
+        }
+      }
+      // upload parallel
+      const urls = await Promise.all(resizedFiles.map(f => uploadImageToStorage(f, "error_images")));
       imageFiles.push(...urls);
       renderModalThumbs();
       uploadStatus.textContent = "อัปโหลดเสร็จสมบูรณ์";
       setTimeout(()=>{ uploadStatus.textContent = ""; }, 1500);
     } catch (err) {
-      alert("อัปโหลดภาพไม่สำเร็จ: "+err.message);
+      console.error(err);
+      alert("อัปโหลดภาพไม่สำเร็จ: "+(err.message||err));
     }
     setTimeout(()=>{ e.target.value=""; },200);
   };
+
   document.getElementById('errorForm').onsubmit = async function(e){
     e.preventDefault();
     let f = e.target;
@@ -407,28 +508,36 @@ function showStockModal(item=null) {
     `).join('');
     window.delImg = function(idx){ imageFiles.splice(idx,1); renderModalThumbs(); }
   }
+
   document.getElementById('imageUpload').onchange = async function(e){
     let files = Array.from(e.target.files);
     let remain = 8-imageFiles.length;
+    if (remain <= 0) { alert("เพิ่มรูปได้สูงสุด 8 รูป"); e.target.value=""; return; }
     let uploadStatus = document.getElementById('uploadStatus');
     uploadStatus.textContent = "กำลังลดขนาดและอัปโหลด...";
     try {
-      // resize แล้วอัปโหลดแบบ parallel
-      let resizedFiles = await Promise.all(
-        files.slice(0,remain).map(file => resizeImageFile(file, 1024, 1024, 0.8))
-      );
-      let urls = await Promise.all(
-        resizedFiles.map(file => uploadImageToStorage(file, "stock_images"))
-      );
+      const filesToProcess = files.slice(0, remain);
+      const resizedFiles = [];
+      for (const f of filesToProcess) {
+        try {
+          const rf = await resizeImageFile(f, 1024, 1024, 4 * 1024 * 1024);
+          resizedFiles.push(rf);
+        } catch (err) {
+          console.warn("resize failed for", f.name, err);
+        }
+      }
+      const urls = await Promise.all(resizedFiles.map(f => uploadImageToStorage(f, "stock_images")));
       imageFiles.push(...urls);
       renderModalThumbs();
       uploadStatus.textContent = "อัปโหลดเสร็จสมบูรณ์";
       setTimeout(()=>{ uploadStatus.textContent = ""; }, 1500);
     } catch (err) {
-      alert("อัปโหลดภาพไม่สำเร็จ: "+err.message);
+      console.error(err);
+      alert("อัปโหลดภาพไม่สำเร็จ: "+(err.message||err));
     }
     setTimeout(()=>{ e.target.value=""; },200);
   };
+
   document.getElementById('stockForm').onsubmit = async function(e){
     e.preventDefault();
     let f = e.target;
@@ -470,7 +579,7 @@ document.getElementById('imgViewerBackdrop').onclick = function(e){ if(e.target=
 document.getElementById('imgViewerPrev').onclick = function(){ imgViewerIdx = (imgViewerIdx-1+imgViewerList.length)%imgViewerList.length; setImgViewerImg(); };
 document.getElementById('imgViewerNext').onclick = function(){ imgViewerIdx = (imgViewerIdx+1)%imgViewerList.length; setImgViewerImg(); };
 
-// --------- Export/Import (Cloud) ---------
+// --------- Export/Import (Cloud) -----------
 document.getElementById('exportErrorBtn').onclick = async function() {
   const data = await getAll(ERROR_COL);
   const blob = new Blob([JSON.stringify(data,null,2)], {type:"application/json"});
@@ -541,9 +650,9 @@ document.getElementById('importStockInput').onchange = function(e) {
       } else {
         alert(`นำเข้าเรียบร้อย: เพิ่ม ${added} รายการ`);
       }
-    } catch(e) { alert("ไฟล์ไม่ถูกต้อง"); }
-  };
-  reader.readAsText(file);
+    } catch(e) { alert("ไฟล์ไม่ถูกต้อง"); } 
+  }; 
+  reader.readAsText(file); 
 };
 // --------- INIT ----------
 window.onload = function() {
