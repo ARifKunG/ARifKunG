@@ -19,6 +19,34 @@ const STOCK_COL = "stock_parts";
 function escape(str) { return String(str||"").replace(/[&<>"']/g, s=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[s])); }
 function uuid() { return Math.random().toString(36).substring(2,10) + Date.now(); }
 
+// --------- Image Resize Function -----------
+async function resizeImageFile(file, maxWidth = 1024, maxHeight = 1024, quality = 0.8) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const reader = new FileReader();
+    reader.onload = e => {
+      img.src = e.target.result;
+    };
+    img.onload = () => {
+      let w = img.width, h = img.height;
+      if (w > maxWidth || h > maxHeight) {
+        const ratio = Math.min(maxWidth / w, maxHeight / h);
+        w = w * ratio;
+        h = h * ratio;
+      }
+      const canvas = document.createElement('canvas');
+      canvas.width = w; canvas.height = h;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, w, h);
+      canvas.toBlob(blob => {
+        resolve(new File([blob], file.name, {type: 'image/jpeg'}));
+      }, 'image/jpeg', quality);
+    };
+    img.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
 // --------- Data CRUD from Firestore -----------
 async function getAll(col) {
   const snap = await db.collection(col).get();
@@ -269,7 +297,7 @@ async function uploadImageToStorage(file, pathPrefix="images") {
   return url;
 }
 
-// --------- Modal สำหรับ Error (ใช้ Storage) -----------
+// --------- Modal สำหรับ Error (ใช้ Storage+Resize+Parallel Upload) -----------
 function showErrorModal(item=null) {
   modalContent.innerHTML = `
     <button class="close" onclick="hideModal()" aria-label="ปิดหน้าต่าง">&times;</button>
@@ -308,18 +336,22 @@ function showErrorModal(item=null) {
     let files = Array.from(e.target.files);
     let remain = 8-imageFiles.length;
     let uploadStatus = document.getElementById('uploadStatus');
-    uploadStatus.textContent = "กำลังอัปโหลดรูปภาพ...";
-    for (const file of files.slice(0,remain)) {
-      try {
-        let url = await uploadImageToStorage(file, "error_images");
-        imageFiles.push(url);
-        renderModalThumbs();
-      } catch (err) {
-        alert("อัปโหลดภาพไม่สำเร็จ: "+err.message);
-      }
+    uploadStatus.textContent = "กำลังลดขนาดและอัปโหลด...";
+    try {
+      // resize แล้วอัปโหลดแบบ parallel
+      let resizedFiles = await Promise.all(
+        files.slice(0,remain).map(file => resizeImageFile(file, 1024, 1024, 0.8))
+      );
+      let urls = await Promise.all(
+        resizedFiles.map(file => uploadImageToStorage(file, "error_images"))
+      );
+      imageFiles.push(...urls);
+      renderModalThumbs();
+      uploadStatus.textContent = "อัปโหลดเสร็จสมบูรณ์";
+      setTimeout(()=>{ uploadStatus.textContent = ""; }, 1500);
+    } catch (err) {
+      alert("อัปโหลดภาพไม่สำเร็จ: "+err.message);
     }
-    uploadStatus.textContent = "อัปโหลดเสร็จสมบูรณ์";
-    setTimeout(()=>{ uploadStatus.textContent = ""; }, 1500);
     setTimeout(()=>{ e.target.value=""; },200);
   };
   document.getElementById('errorForm').onsubmit = async function(e){
@@ -342,7 +374,7 @@ function showErrorModal(item=null) {
   };
 }
 
-// --------- Modal สำหรับ Stock (ใช้ Storage) -----------
+// --------- Modal สำหรับ Stock (ใช้ Storage+Resize+Parallel Upload) -----------
 function showStockModal(item=null) {
   modalContent.innerHTML = `
     <button class="close" onclick="hideModal()" aria-label="ปิดหน้าต่าง">&times;</button>
@@ -379,18 +411,22 @@ function showStockModal(item=null) {
     let files = Array.from(e.target.files);
     let remain = 8-imageFiles.length;
     let uploadStatus = document.getElementById('uploadStatus');
-    uploadStatus.textContent = "กำลังอัปโหลดรูปภาพ...";
-    for (const file of files.slice(0,remain)) {
-      try {
-        let url = await uploadImageToStorage(file, "stock_images");
-        imageFiles.push(url);
-        renderModalThumbs();
-      } catch (err) {
-        alert("อัปโหลดภาพไม่สำเร็จ: "+err.message);
-      }
+    uploadStatus.textContent = "กำลังลดขนาดและอัปโหลด...";
+    try {
+      // resize แล้วอัปโหลดแบบ parallel
+      let resizedFiles = await Promise.all(
+        files.slice(0,remain).map(file => resizeImageFile(file, 1024, 1024, 0.8))
+      );
+      let urls = await Promise.all(
+        resizedFiles.map(file => uploadImageToStorage(file, "stock_images"))
+      );
+      imageFiles.push(...urls);
+      renderModalThumbs();
+      uploadStatus.textContent = "อัปโหลดเสร็จสมบูรณ์";
+      setTimeout(()=>{ uploadStatus.textContent = ""; }, 1500);
+    } catch (err) {
+      alert("อัปโหลดภาพไม่สำเร็จ: "+err.message);
     }
-    uploadStatus.textContent = "อัปโหลดเสร็จสมบูรณ์";
-    setTimeout(()=>{ uploadStatus.textContent = ""; }, 1500);
     setTimeout(()=>{ e.target.value=""; },200);
   };
   document.getElementById('stockForm').onsubmit = async function(e){
