@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <title>Error อะไรของมันว้ะ</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@400;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+  <link rel="stylesheet" href="style.css">
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1><i class="bi bi-cpu me"></i> Error อะไรของมันว้ะ</h1>
+      <div class="desc">
+        ฐานข้อมูล <b style="color:#ffd600;">Error Code</b> + <b style="color:#00e676;">อะไหล่</b> + <b style="color:#ff8a65;">แนวทางซ่อม</b><br>สำหรับศูนย์บริการและทีมช่างยุคใหม่
+      </div>
+      <div style="margin:7px 0 0 0;opacity:.93;font-size:.96em;"><i class="bi bi-lightning-charge"></i> ใช้งานง่าย รองรับทุกอุปกรณ์</div>
+    </header>
+    <div class="db-util-bar">
+      <button class="btn btn-success btn-sm" id="exportErrorBtn"><i class="bi bi-download"></i> Export Error</button>
+      <input type="file" id="importErrorInput" accept=".json" style="display:none;">
+      <button class="btn btn-warning btn-sm" id="importErrorBtn"><i class="bi bi-upload"></i> Import Error</button>
+      <button class="btn btn-success btn-sm" id="exportStockBtn"><i class="bi bi-download"></i> Export Stock</button>
+      <input type="file" id="importStockInput" accept=".json" style="display:none;">
+      <button class="btn btn-warning btn-sm" id="importStockBtn"><i class="bi bi-upload"></i> Import Stock</button>
+    </div>
+    <div class="nav">
+      <button class="nav-btn active" id="tab-error"><i class="bi bi-exclamation-circle"></i> Error Code</button>
+      <button class="nav-btn" id="tab-stock"><i class="bi bi-box-seam"></i> คลังอะไหล่</button>
+    </div>
+    <div class="section" id="section-error">
+      <div class="search-bar">
+        <input id="searchError" type="text" placeholder="🔍 ค้นหา..." autocomplete="off">
+        <select id="searchErrorFilter" class="filter-select">
+          <option value="brand">แบรนด์</option>
+          <option value="model">รุ่น</option>
+          <option value="errorCode">Error Code</option>
+        </select>
+        <button class="search-btn" id="searchErrorBtn" tabindex="-1"><i class="bi bi-search"></i></button>
+        <button class="clear-btn" id="clearErrorBtn" title="ล้าง" tabindex="-1"><i class="bi bi-x-lg"></i></button>
+      </div>
+      <div id="errorSuggest" class="suggest-list" style="display:none;"></div>
+      <button class="btn" id="addErrorBtn"><i class="bi bi-plus-circle"></i> เพิ่ม Error Code ใหม่</button>
+      <div id="errorList"></div>
+    </div>
+    <div class="section" id="section-stock" style="display:none;">
+      <div class="search-bar">
+        <input id="searchStock" type="text" placeholder="🔍 ค้นหา..." autocomplete="off">
+        <select id="searchStockFilter" class="filter-select">
+          <option value="partBrand">แบรนด์</option>
+          <option value="forModel">รุ่น</option>
+          <option value="partName">ชื่ออะไหล่</option>
+        </select>
+        <button class="search-btn" id="searchStockBtn" tabindex="-1"><i class="bi bi-search"></i></button>
+        <button class="clear-btn" id="clearStockBtn" title="ล้าง" tabindex="-1"><i class="bi bi-x-lg"></i></button>
+      </div>
+      <div id="stockSuggest" class="suggest-list" style="display:none;"></div>
+      <button class="btn" id="addStockBtn"><i class="bi bi-plus-circle"></i> เพิ่มอะไหล่เข้าสต๊อก</button>
+      <div id="stockList"></div>
+    </div>
+  </div>
+  <div id="modal" class="modal"><div class="modal-content" id="modalContent"></div></div>
+  <div class="img-viewer-backdrop" id="imgViewerBackdrop">
+    <div class="img-viewer">
+      <button class="img-viewer-close" id="imgViewerClose" aria-label="ปิดรูปภาพ">&times;</button>
+      <button class="img-viewer-prev" id="imgViewerPrev">&#8592;</button>
+      <img class="img-viewer-img" id="imgViewerImg" src="">
+      <button class="img-viewer-next" id="imgViewerNext">&#8594;</button>
+    </div>
+  </div>
+  <script src="app.js"></script>
+</body>
+</html>
