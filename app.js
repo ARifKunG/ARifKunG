@@ -3,7 +3,7 @@ const firebaseConfig = {
   apiKey: "AIzaSyDBwvowdavTcrzBtjSOHphrkF9UB_SCCag",
   authDomain: "wtf-error.firebaseapp.com",
   projectId: "wtf-error",
-  storageBucket: "wtf-error.firebasestorage.appspot.com",
+  storageBucket: "wtf-error.appspot.com",
   messagingSenderId: "329249521089",
   appId: "1:329249521089:web:50219f4e71b0ccd4a70340",
   measurementId: "G-M2F25S8WYK"
