@@ -1,11 +1,12 @@
 // --------- Firebase Config -----------
 const firebaseConfig = {
-  apiKey: "YOUR_API_KEY",
-  authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
-  projectId: "YOUR_PROJECT_ID",
-  storageBucket: "YOUR_PROJECT_ID.appspot.com",
-  messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
-  appId: "YOUR_APP_ID"
+  apiKey: "AIzaSyDBwvowdavTcrzBtjSOHphrkF9UB_SCCag",
+  authDomain: "wtf-error.firebaseapp.com",
+  projectId: "wtf-error",
+  storageBucket: "wtf-error.firebasestorage.app",
+  messagingSenderId: "329249521089",
+  appId: "1:329249521089:web:50219f4e71b0ccd4a70340",
+  measurementId: "G-M2F25S8WYK"
 };
 // !! เปลี่ยนค่าด้านบนให้ตรงกับของคุณ !!
 
