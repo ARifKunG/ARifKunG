@@ -1,9 +1,9 @@
 <!DOCTYPE html>
 <html lang="th">
 <head>
-  <meta charset="UTF-8">
+  <meta charset="UTF-8" />
   <title>WTF Error & Stock</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <!-- Bootstrap Icons (optional) -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
   <link rel="stylesheet" href="styles.css">
@@ -13,6 +13,7 @@
     <button id="tab-error" class="active">Error Codes</button>
     <button id="tab-stock">Stock Parts</button>
   </div>
+
   <section id="section-error" style="display:block;">
     <div class="searchbar">
       <select id="searchErrorFilter">
@@ -25,12 +26,17 @@
       <button id="clearErrorBtn"><i class="bi bi-x"></i></button>
       <div id="errorSuggest" class="suggest-box"></div>
     </div>
-    <button id="addErrorBtn" class="add-btn"><i class="bi bi-plus-circle"></i> เพิ่ม Error Code</button>
-    <button id="exportErrorBtn" class="export-btn"><i class="bi bi-download"></i> ส่งออกข้อมูล</button>
-    <button id="importErrorBtn" class="import-btn"><i class="bi bi-upload"></i> นำเข้าข้อมูล</button>
-    <input id="importErrorInput" type="file" style="display:none;" accept="application/json">
+
+    <div class="controls">
+      <button id="addErrorBtn" class="add-btn"><i class="bi bi-plus-circle"></i> เพิ่ม Error Code</button>
+      <button id="exportErrorBtn" class="export-btn"><i class="bi bi-download"></i> ส่งออกข้อมูล</button>
+      <button id="importErrorBtn" class="import-btn"><i class="bi bi-upload"></i> นำเข้าข้อมูล</button>
+      <input id="importErrorInput" type="file" style="display:none;" accept="application/json">
+    </div>
+
     <div id="errorList" class="card-list"></div>
   </section>
+
   <section id="section-stock" style="display:none;">
     <div class="searchbar">
       <select id="searchStockFilter">
@@ -43,14 +49,18 @@
       <button id="clearStockBtn"><i class="bi bi-x"></i></button>
       <div id="stockSuggest" class="suggest-box"></div>
     </div>
-    <button id="addStockBtn" class="add-btn"><i class="bi bi-plus-circle"></i> เพิ่มอะไหล่</button>
-    <button id="exportStockBtn" class="export-btn"><i class="bi bi-download"></i> ส่งออกข้อมูล</button>
-    <button id="importStockBtn" class="import-btn"><i class="bi bi-upload"></i> นำเข้าข้อมูล</button>
-    <input id="importStockInput" type="file" style="display:none;" accept="application/json">
+
+    <div class="controls">
+      <button id="addStockBtn" class="add-btn"><i class="bi bi-plus-circle"></i> เพิ่มอะไหล่</button>
+      <button id="exportStockBtn" class="export-btn"><i class="bi bi-download"></i> ส่งออกข้อมูล</button>
+      <button id="importStockBtn" class="import-btn"><i class="bi bi-upload"></i> นำเข้าข้อมูล</button>
+      <input id="importStockInput" type="file" style="display:none;" accept="application/json">
+    </div>
+
     <div id="stockList" class="card-list"></div>
   </section>
 
-  <!-- Modal -->
+  <!-- Modal (ใช้สำหรับเพิ่ม/แก้ไข ทั้ง Error และ Stock) -->
   <div id="modal" class="modal"><div id="modalContent" class="modal-content"></div></div>
 
   <!-- Image Viewer -->
@@ -61,10 +71,7 @@
     <button id="imgViewerNext" class="img-viewer-next"><i class="bi bi-chevron-right"></i></button>
   </div>
 
-  <!-- Firebase SDKs -->
-  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-storage.js"></script>
+  <!-- ไม่มี Firebase/Cloud ใดๆ ในเวอร์ชันนี้ -->
   <script src="app.js"></script>
 </body>
 </html>
